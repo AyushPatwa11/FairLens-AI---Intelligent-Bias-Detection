@@ -213,17 +213,74 @@ def _rule_based_scan(text: str):
         "risk": _risk_from_score(score)
     }
 
+def _generate_ai_report(text: str, scan_result: dict, wrapper) -> str:
+    """Generate an AI audit report summarizing JD bias findings."""
+    try:
+        bias_summary = []
+        for bias_type, count_key in [
+            ("Gender", "gender_count"), ("Age", "age_count"), ("Physical", "physical_count"),
+            ("Socio-Economic", "socio_economic_count"), ("Cultural", "cultural_count"),
+            ("Disability", "disability_count"), ("Religion", "religion_count"),
+            ("Family", "family_count"), ("Health", "health_count"),
+            ("Caste", "caste_count"), ("Appearance", "appearance_count"),
+        ]:
+            count = scan_result.get(count_key, 0)
+            if count > 0:
+                bias_summary.append(f"- {bias_type} Bias: {count} instance(s)")
+
+        if not bias_summary:
+            bias_summary_text = "No bias patterns detected."
+        else:
+            bias_summary_text = "\n".join(bias_summary)
+
+        suggestions = scan_result.get("suggestions", [])
+        replacements_text = "\n".join(
+            [f'- Replace "{s["word"]}" with "{s["replacement"]}"' for s in suggestions[:10] if s.get("replacement")]
+        ) or "None"
+
+        prompt_text = f"""You are an expert HR compliance and fairness AI auditor.
+
+A job description has been scanned for biased language. Below is a summary of findings:
+
+**Bias Score:** {scan_result.get('score', 0)}/100
+**Risk Level:** {scan_result.get('risk', 'Low Risk')}
+
+**Detected Bias Instances by Category:**
+{bias_summary_text}
+
+**Top Suggested Replacements:**
+{replacements_text}
+
+Based on these findings, write a concise professional audit report covering:
+1. **Executive Summary** – overall bias risk assessment
+2. **Key Findings** – which bias categories are most prominent and why they matter
+3. **Impact Analysis** – how this language may affect candidate diversity and legal compliance
+4. **Recommendations** – prioritized action items to improve inclusivity
+
+Rules:
+- Be objective, data-driven, and neutral.
+- Use clear professional Markdown formatting.
+- Keep the report concise and high-impact (max 300 words).
+- Do not invent bias instances that are not in the summary above.
+"""
+        response = wrapper.invoke(prompt_text)
+        return response.content.strip()
+    except Exception as e:
+        return f"AI Audit Report generation failed: {str(e)}"
+
+
 def scan(text: str):
     baseline = _rule_based_scan(text)
     wrapper = get_llm_wrapper(temperature=0.1)
     if not wrapper:
         baseline["success"] = True
         baseline["engine"] = "rule-based"
+        baseline["ai_report"] = "Offline Mode: AI Audit Report unavailable. Please add a GOOGLE_API_KEY to enable."
         return baseline
 
     try:
         prompt = PromptTemplate.from_template("""
-You are a fairness and compliance AI. Analyze the following job description for exclusionary language, gender bias, or ageist terminology.
+You are a fairness and compliance AI. Analyze the following job description for exclusionary language and bias.
 Job Description:
 {text}
 
@@ -231,14 +288,26 @@ Return your response strictly as a JSON object with the following schema:
 {{
   "processed_text": "The original text but with HTML <span class='highlight-bias' title='Bias: [Type]'>biased_word</span> tags wrapping the biased words.",
   "suggestions": [
-    {{"type": "Gender (or Age, etc.)", "word": "biased word", "replacement": "inclusive alternative"}}
+    {{"type": "Gender (or Age, Disability, Religion, Family, Physical, Socio-Economic, Cultural, Health, Caste, Appearance)", "word": "biased word", "replacement": "inclusive alternative"}}
   ],
   "gender_count": 0,
   "age_count": 0,
+  "physical_count": 0,
+  "socio_economic_count": 0,
+  "cultural_count": 0,
+  "disability_count": 0,
+  "religion_count": 0,
+  "family_count": 0,
+  "health_count": 0,
+  "caste_count": 0,
+  "appearance_count": 0,
   "score": 0,
-  "risk": "Low Risk" // Must be "Low Risk", "Medium Risk", or "High Risk" based on severity (0 to 100 score).
+  "risk": "Low Risk"
 }}
-Make sure it is valid JSON. Do not include markdown codeblocks like ```json.
+Rules:
+- "risk" must be one of: "Low Risk", "Medium Risk", "High Risk" based on severity (score 0-100).
+- score is 0 (no bias) to 100 (maximum bias).
+- Make sure it is valid JSON. Do not include markdown codeblocks like ```json.
 """)
         response = wrapper.invoke(prompt.format(text=text))
         content = response.content.strip()
@@ -252,10 +321,14 @@ Make sure it is valid JSON. Do not include markdown codeblocks like ```json.
         data = json.loads(content.strip())
         data["success"] = True
         data["engine"] = "llm"
+        # Generate AI audit report using LLM output
+        data["ai_report"] = _generate_ai_report(text, data, wrapper)
         return data
     except Exception as e:
         baseline["success"] = True
         baseline["engine"] = "rule-based"
         baseline["fallback_reason"] = str(e)
+        # Still generate AI report from rule-based results
+        baseline["ai_report"] = _generate_ai_report(text, baseline, wrapper)
         return baseline
 

@@ -125,7 +125,20 @@ def format_jd_output(scanner_result: dict, domain: str = "hiring") -> dict:
         "insights": insights,
         "recommendations": recommendations,
         "processed_text": scanner_result.get("processed_text", ""),
-        "engine": scanner_result.get("engine", "rule-based")
+        "engine": scanner_result.get("engine", "rule-based"),
+        "ai_report": scanner_result.get("ai_report", ""),
+        # Pass through raw per-category counts for the frontend breakdown
+        "gender_count": scanner_result.get("gender_count", 0),
+        "age_count": scanner_result.get("age_count", 0),
+        "physical_count": scanner_result.get("physical_count", 0),
+        "socio_economic_count": scanner_result.get("socio_economic_count", 0),
+        "cultural_count": scanner_result.get("cultural_count", 0),
+        "disability_count": scanner_result.get("disability_count", 0),
+        "religion_count": scanner_result.get("religion_count", 0),
+        "family_count": scanner_result.get("family_count", 0),
+        "health_count": scanner_result.get("health_count", 0),
+        "caste_count": scanner_result.get("caste_count", 0),
+        "appearance_count": scanner_result.get("appearance_count", 0),
     }
 
 

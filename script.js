@@ -292,37 +292,42 @@ document.addEventListener('DOMContentLoaded', () => {
                 else if(result.risk_level === 'Medium Risk') document.getElementById('jd-risk-level').style.color = 'var(--warning-color)';
                 else document.getElementById('jd-risk-level').style.color = 'var(--success-color)';
 
-                // Count biases by type from detected_biases array
-                let genderCount = 0, ageCount = 0, disabilityCount = 0, religionCount = 0, 
-                    familyCount = 0, physicalCount = 0, socioEconomicCount = 0, culturalCount = 0, 
-                    healthCount = 0, casteCount = 0, appearanceCount = 0;
-                
-                if (result.detected_biases) {
-                    result.detected_biases.forEach(bias => {
-                        if (bias.attribute === 'Gender') genderCount++;
-                        if (bias.attribute === 'Age') ageCount++;
-                        if (bias.attribute === 'Disability') disabilityCount++;
-                        if (bias.attribute === 'Religion') religionCount++;
-                        if (bias.attribute === 'Family') familyCount++;
-                        if (bias.attribute === 'Physical') physicalCount++;
-                        if (bias.attribute === 'Socio-Economic') socioEconomicCount++;
-                        if (bias.attribute === 'Cultural') culturalCount++;
-                        if (bias.attribute === 'Health') healthCount++;
-                        if (bias.attribute === 'Caste') casteCount++;
-                        if (bias.attribute === 'Appearance') appearanceCount++;
-                    });
+                // Use direct per-category counts from API response
+                document.getElementById('gb-count').textContent = result.gender_count || 0;
+                document.getElementById('ab-count').textContent = result.age_count || 0;
+                document.getElementById('db-count').textContent = result.disability_count || 0;
+                document.getElementById('rb-count').textContent = result.religion_count || 0;
+                document.getElementById('fb-count').textContent = result.family_count || 0;
+                document.getElementById('pb-count').textContent = result.physical_count || 0;
+                document.getElementById('seb-count').textContent = result.socio_economic_count || 0;
+                document.getElementById('cb-count').textContent = result.cultural_count || 0;
+                document.getElementById('hb-count').textContent = result.health_count || 0;
+                document.getElementById('casteb-count').textContent = result.caste_count || 0;
+                document.getElementById('appb-count').textContent = result.appearance_count || 0;
+
+                // Display AI Audit Report if available
+                const jdAiReportPanel = document.getElementById('jd-ai-report-panel');
+                const jdAiReportContent = document.getElementById('jd-ai-report-content');
+                if (jdAiReportPanel && jdAiReportContent && result.ai_report) {
+                    let htmlReport = result.ai_report
+                        .replace(/^### (.*$)/gim, '<h4>$1</h4>')
+                        .replace(/^## (.*$)/gim, '<h3 class="mt-3 mb-2">$1</h3>')
+                        .replace(/^# (.*$)/gim, '<h2 class="mt-4 mb-2">$1</h2>')
+                        .replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>')
+                        .replace(/\*(.*?)\*/gim, '<em>$1</em>')
+                        .replace(/\n/gim, '<br>');
+                    jdAiReportContent.innerHTML = htmlReport;
+                    jdAiReportPanel.style.display = 'block';
                 }
-                document.getElementById('gb-count').textContent = genderCount;
-                document.getElementById('ab-count').textContent = ageCount;
-                document.getElementById('db-count').textContent = disabilityCount;
-                document.getElementById('rb-count').textContent = religionCount;
-                document.getElementById('fb-count').textContent = familyCount;
-                document.getElementById('pb-count').textContent = physicalCount;
-                document.getElementById('seb-count').textContent = socioEconomicCount;
-                document.getElementById('cb-count').textContent = culturalCount;
-                document.getElementById('hb-count').textContent = healthCount;
-                document.getElementById('casteb-count').textContent = casteCount;
-                document.getElementById('appb-count').textContent = appearanceCount;
+
+                // Display insights if available
+                const jdInsightsList = document.getElementById('jd-insights-list');
+                if (jdInsightsList && result.insights && result.insights.length > 0) {
+                    jdInsightsList.innerHTML = result.insights.map(insight =>
+                        `<li><i class="ph ph-info"></i> ${insight}</li>`
+                    ).join('');
+                    document.getElementById('jd-insights-panel').style.display = 'block';
+                }
             }
         } catch (err) {
             console.error('❌ JD Scan Error:', err);
