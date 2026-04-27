@@ -2,6 +2,24 @@ document.addEventListener('DOMContentLoaded', () => {
     const API_BASE_URL = (window.FAIRLENS_API_BASE || 'http://127.0.0.1:8001').replace(/\/$/, '');
     const apiUrl = (path) => `${API_BASE_URL}${path}`;
 
+    // Safely escape HTML to prevent XSS when inserting untrusted text into innerHTML
+    const escapeHtml = (str) => String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+
+    // Convert a plain Markdown string (with HTML-escaped content) to safe HTML.
+    // Only the structural Markdown patterns we produce are converted; no raw HTML passes through.
+    const markdownToHtml = (md) => escapeHtml(md)
+        .replace(/^### (.*$)/gim, '<h4>$1</h4>')
+        .replace(/^## (.*$)/gim, '<h3 class="mt-3 mb-2">$1</h3>')
+        .replace(/^# (.*$)/gim, '<h2 class="mt-4 mb-2">$1</h2>')
+        .replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/gim, '<em>$1</em>')
+        .replace(/\n/gim, '<br>');
+
     // Navigation
     const navItems = document.querySelectorAll('.nav-item');
     const sections = document.querySelectorAll('.view-section');
@@ -152,17 +170,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (result.ai_report) {
                     const reportPanel = document.getElementById('ai-report-panel');
                     const reportContent = document.getElementById('ai-report-content');
-                    
-                    // Simple Markdown to HTML conversion
-                    let htmlReport = result.ai_report
-                        .replace(/^### (.*$)/gim, '<h4>$1</h4>')
-                        .replace(/^## (.*$)/gim, '<h3 class="mt-3 mb-2">$1</h3>')
-                        .replace(/^# (.*$)/gim, '<h2 class="mt-4 mb-2">$1</h2>')
-                        .replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>')
-                        .replace(/\*(.*?)\*/gim, '<em>$1</em>')
-                        .replace(/\n/gim, '<br>');
-                        
-                    reportContent.innerHTML = htmlReport;
+                    reportContent.innerHTML = markdownToHtml(result.ai_report);
                     reportPanel.style.display = 'block';
                 }
                 
@@ -309,14 +317,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const jdAiReportPanel = document.getElementById('jd-ai-report-panel');
                 const jdAiReportContent = document.getElementById('jd-ai-report-content');
                 if (jdAiReportPanel && jdAiReportContent && result.ai_report) {
-                    let htmlReport = result.ai_report
-                        .replace(/^### (.*$)/gim, '<h4>$1</h4>')
-                        .replace(/^## (.*$)/gim, '<h3 class="mt-3 mb-2">$1</h3>')
-                        .replace(/^# (.*$)/gim, '<h2 class="mt-4 mb-2">$1</h2>')
-                        .replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>')
-                        .replace(/\*(.*?)\*/gim, '<em>$1</em>')
-                        .replace(/\n/gim, '<br>');
-                    jdAiReportContent.innerHTML = htmlReport;
+                    jdAiReportContent.innerHTML = markdownToHtml(result.ai_report);
                     jdAiReportPanel.style.display = 'block';
                 }
 
@@ -324,7 +325,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const jdInsightsList = document.getElementById('jd-insights-list');
                 if (jdInsightsList && result.insights && result.insights.length > 0) {
                     jdInsightsList.innerHTML = result.insights.map(insight =>
-                        `<li><i class="ph ph-info"></i> ${insight}</li>`
+                        `<li><i class="ph ph-info"></i> ${escapeHtml(insight)}</li>`
                     ).join('');
                     document.getElementById('jd-insights-panel').style.display = 'block';
                 }

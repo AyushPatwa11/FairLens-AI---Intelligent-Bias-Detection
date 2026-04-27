@@ -213,6 +213,8 @@ def _rule_based_scan(text: str):
         "risk": _risk_from_score(score)
     }
 
+MAX_REPLACEMENT_SUGGESTIONS = 10
+
 def _generate_ai_report(text: str, scan_result: dict, wrapper) -> str:
     """Generate an AI audit report summarizing JD bias findings."""
     try:
@@ -235,7 +237,7 @@ def _generate_ai_report(text: str, scan_result: dict, wrapper) -> str:
 
         suggestions = scan_result.get("suggestions", [])
         replacements_text = "\n".join(
-            [f'- Replace "{s["word"]}" with "{s["replacement"]}"' for s in suggestions[:10] if s.get("replacement")]
+            [f'- Replace "{s["word"]}" with "{s["replacement"]}"' for s in suggestions[:MAX_REPLACEMENT_SUGGESTIONS] if s.get("replacement")]
         ) or "None"
 
         prompt_text = f"""You are an expert HR compliance and fairness AI auditor.
@@ -275,7 +277,7 @@ def scan(text: str):
     if not wrapper:
         baseline["success"] = True
         baseline["engine"] = "rule-based"
-        baseline["ai_report"] = "Offline Mode: AI Audit Report unavailable. Please add a GOOGLE_API_KEY to enable."
+        baseline["ai_report"] = "Offline Mode: AI Audit Report unavailable. Please set the GOOGLE_API_KEY environment variable (e.g., in backend/.env) to enable."
         return baseline
 
     try:
